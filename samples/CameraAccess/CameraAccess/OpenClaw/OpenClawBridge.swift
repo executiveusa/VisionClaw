@@ -29,7 +29,7 @@ class OpenClawBridge: ObservableObject {
     request.httpMethod = "POST"
     request.setValue("Bearer \(GeminiConfig.openClawGatewayToken)", forHTTPHeaderField: "Authorization")
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.setValue("glass:default", forHTTPHeaderField: "x-openclaw-session-key")
+    request.setValue("agent:main:glass:default", forHTTPHeaderField: "x-openclaw-session-key")
 
     let body: [String: Any] = [
       "model": "openclaw",
