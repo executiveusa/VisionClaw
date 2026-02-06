@@ -24,6 +24,11 @@ enum StreamingStatus {
   case stopped
 }
 
+enum StreamingMode {
+  case glasses
+  case iPhone
+}
+
 @MainActor
 class StreamSessionViewModel: ObservableObject {
   @Published var currentVideoFrame: UIImage?
@@ -32,6 +37,7 @@ class StreamSessionViewModel: ObservableObject {
   @Published var showError: Bool = false
   @Published var errorMessage: String = ""
   @Published var hasActiveDevice: Bool = false
+  @Published var streamingMode: StreamingMode = .glasses
 
   var isStreaming: Bool {
     streamingStatus != .stopped
@@ -54,6 +60,7 @@ class StreamSessionViewModel: ObservableObject {
   private let wearables: WearablesInterface
   private let deviceSelector: AutoDeviceSelector
   private var deviceMonitorTask: Task<Void, Never>?
+  private var iPhoneCameraManager: IPhoneCameraManager?
 
   init(wearables: WearablesInterface) {
     self.wearables = wearables
@@ -153,7 +160,51 @@ class StreamSessionViewModel: ObservableObject {
   }
 
   func stopSession() async {
+    if streamingMode == .iPhone {
+      stopIPhoneSession()
+      return
+    }
     await streamSession.stop()
+  }
+
+  // MARK: - iPhone Camera Mode
+
+  func handleStartIPhone() async {
+    let granted = await IPhoneCameraManager.requestPermission()
+    if granted {
+      startIPhoneSession()
+    } else {
+      showError("Camera permission denied. Please grant access in Settings.")
+    }
+  }
+
+  private func startIPhoneSession() {
+    streamingMode = .iPhone
+    let camera = IPhoneCameraManager()
+    camera.onFrameCaptured = { [weak self] image in
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        self.currentVideoFrame = image
+        if !self.hasReceivedFirstFrame {
+          self.hasReceivedFirstFrame = true
+        }
+        self.geminiSessionVM?.sendVideoFrameIfThrottled(image: image)
+      }
+    }
+    camera.start()
+    iPhoneCameraManager = camera
+    streamingStatus = .streaming
+    NSLog("[Stream] iPhone camera mode started")
+  }
+
+  private func stopIPhoneSession() {
+    iPhoneCameraManager?.stop()
+    iPhoneCameraManager = nil
+    currentVideoFrame = nil
+    hasReceivedFirstFrame = false
+    streamingStatus = .stopped
+    streamingMode = .glasses
+    NSLog("[Stream] iPhone camera mode stopped")
   }
 
   func dismissError() {

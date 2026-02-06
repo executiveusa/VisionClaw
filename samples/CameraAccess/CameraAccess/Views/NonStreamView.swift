@@ -80,6 +80,16 @@ struct NonStreamView: View {
         .opacity(viewModel.hasActiveDevice ? 0 : 1)
 
         CustomButton(
+          title: "Start on iPhone",
+          style: .secondary,
+          isDisabled: false
+        ) {
+          Task {
+            await viewModel.handleStartIPhone()
+          }
+        }
+
+        CustomButton(
           title: "Start streaming",
           style: .primary,
           isDisabled: !viewModel.hasActiveDevice
