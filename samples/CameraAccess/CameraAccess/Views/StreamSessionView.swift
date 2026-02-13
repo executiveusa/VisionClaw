@@ -21,6 +21,7 @@ struct StreamSessionView: View {
   @StateObject private var viewModel: StreamSessionViewModel
   @StateObject private var geminiVM = GeminiSessionViewModel()
   @StateObject private var webrtcVM = WebRTCSessionViewModel()
+  @State private var selectedVertical: any VerticalConfiguration = ConstructionConfig()
 
   init(wearables: WearablesInterface, wearablesVM: WearablesViewModel) {
     self.wearables = wearables
@@ -35,7 +36,7 @@ struct StreamSessionView: View {
         StreamView(viewModel: viewModel, wearablesVM: wearablesViewModel, geminiVM: geminiVM, webrtcVM: webrtcVM)
       } else {
         // Pre-streaming setup view with permissions and start button
-        NonStreamView(viewModel: viewModel, wearablesVM: wearablesViewModel)
+        NonStreamView(viewModel: viewModel, wearablesVM: wearablesViewModel, selectedVertical: $selectedVertical)
       }
     }
     .task {
@@ -46,8 +47,12 @@ struct StreamSessionView: View {
     .onChange(of: viewModel.streamingMode) { newMode in
       geminiVM.streamingMode = newMode
     }
+    .onChange(of: selectedVertical.id) { _ in
+      geminiVM.verticalConfig = selectedVertical
+    }
     .onAppear {
       UIApplication.shared.isIdleTimerDisabled = true
+      geminiVM.verticalConfig = selectedVertical
     }
     .onDisappear {
       UIApplication.shared.isIdleTimerDisabled = false

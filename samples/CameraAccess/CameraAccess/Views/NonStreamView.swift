@@ -20,6 +20,7 @@ import SwiftUI
 struct NonStreamView: View {
   @ObservedObject var viewModel: StreamSessionViewModel
   @ObservedObject var wearablesVM: WearablesViewModel
+  @Binding var selectedVertical: any VerticalConfiguration
   @State private var sheetHeight: CGFloat = 300
 
   var body: some View {
@@ -79,6 +80,10 @@ struct NonStreamView: View {
         }
         .padding(.bottom, 12)
         .opacity(viewModel.hasActiveDevice ? 0 : 1)
+
+        // Vertical picker
+        VerticalPickerView(selectedConfig: $selectedVertical)
+          .padding(.bottom, 12)
 
         // Resolution picker (glasses mode only)
         VStack(spacing: 4) {

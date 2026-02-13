@@ -11,12 +11,18 @@ class GeminiSessionViewModel: ObservableObject {
   @Published var aiTranscript: String = ""
   @Published var toolCallStatus: ToolCallStatus = .idle
   @Published var openClawConnectionState: OpenClawConnectionState = .notConfigured
+  @Published var sessionManager: SessionManager?
+
   private let geminiService = GeminiLiveService()
   private let openClawBridge = OpenClawBridge()
   private var toolCallRouter: ToolCallRouter?
   private let audioManager = AudioManager()
   private var lastVideoFrameTime: Date = .distantPast
   private var stateObservation: Task<Void, Never>?
+
+  /// The active vertical configuration. Set before starting a session.
+  /// Defaults to GeneralConfig (VisionClaw-compatible behavior).
+  var verticalConfig: VerticalConfiguration = GeneralConfig()
 
   var streamingMode: StreamingMode = .glasses
 
@@ -29,6 +35,23 @@ class GeminiSessionViewModel: ObservableObject {
     }
 
     isGeminiActive = true
+
+    // Create session manager for this vertical
+    let manager = SessionManager(config: verticalConfig)
+    sessionManager = manager
+
+    // Build system prompt with context injection
+    var fullPrompt = verticalConfig.systemPrompt
+    if let context = await verticalConfig.contextBlock(sessionManager: manager) {
+      fullPrompt += "\n\n" + context
+    }
+
+    // Inject dynamic prompt and tools into Gemini service
+    geminiService.dynamicSystemPrompt = fullPrompt
+    geminiService.dynamicToolDeclarations = verticalConfig.toolDeclarations
+
+    NSLog("[GeminiSession] Starting with vertical: %@ (%@)",
+          verticalConfig.displayName, verticalConfig.id)
 
     // Wire audio callbacks
     audioManager.onAudioCaptured = { [weak self] data in
@@ -62,6 +85,8 @@ class GeminiSessionViewModel: ObservableObject {
       Task { @MainActor in
         self.userTranscript += text
         self.aiTranscript = ""
+        // Record transcript in session
+        self.sessionManager?.addTranscript(speaker: "user", text: text)
       }
     }
 
@@ -69,6 +94,8 @@ class GeminiSessionViewModel: ObservableObject {
       guard let self else { return }
       Task { @MainActor in
         self.aiTranscript += text
+        // Record transcript in session
+        self.sessionManager?.addTranscript(speaker: "ai", text: text)
       }
     }
 
@@ -86,8 +113,12 @@ class GeminiSessionViewModel: ObservableObject {
     await openClawBridge.checkConnection()
     openClawBridge.resetSession()
 
-    // Wire tool call handling
-    toolCallRouter = ToolCallRouter(bridge: openClawBridge)
+    // Wire tool call handling with vertical config for local dispatch
+    toolCallRouter = ToolCallRouter(
+      bridge: openClawBridge,
+      config: verticalConfig,
+      sessionManager: manager
+    )
 
     geminiService.onToolCall = { [weak self] toolCall in
       guard let self else { return }
@@ -129,6 +160,9 @@ class GeminiSessionViewModel: ObservableObject {
       return
     }
 
+    // Start walkthrough session
+    manager.startWalkthrough()
+
     // Connect to Gemini and wait for setupComplete
     let setupOk = await geminiService.connect()
 
@@ -167,6 +201,8 @@ class GeminiSessionViewModel: ObservableObject {
     toolCallRouter = nil
     audioManager.stopCapture()
     geminiService.disconnect()
+    geminiService.dynamicSystemPrompt = nil
+    geminiService.dynamicToolDeclarations = nil
     stateObservation?.cancel()
     stateObservation = nil
     isGeminiActive = false
@@ -183,6 +219,11 @@ class GeminiSessionViewModel: ObservableObject {
     guard now.timeIntervalSince(lastVideoFrameTime) >= GeminiConfig.videoFrameInterval else { return }
     lastVideoFrameTime = now
     geminiService.sendVideoFrame(image: image)
+
+    // Store latest frame for snapshot capture by SessionManager
+    if let jpegData = image.jpegData(compressionQuality: GeminiConfig.videoJPEGQuality) {
+      sessionManager?.latestFrame = jpegData
+    }
   }
 
 }
