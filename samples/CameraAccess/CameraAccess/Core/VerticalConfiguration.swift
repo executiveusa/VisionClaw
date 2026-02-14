@@ -26,6 +26,7 @@ protocol VerticalConfiguration {
 
     /// Handle a tool call locally. Return nil to fall through to OpenClaw.
     /// This is where vertical-specific actions (flag_issue, end_walkthrough) are handled.
+    @MainActor
     func handleToolCall(
         _ call: GeminiFunctionCall,
         sessionManager: SessionManager
@@ -33,6 +34,7 @@ protocol VerticalConfiguration {
 
     /// Context block injected into the system prompt before a session starts.
     /// Contains project data, schedules, previous walkthrough summaries, etc.
+    @MainActor
     func contextBlock(sessionManager: SessionManager) async -> String?
 
     /// Generate a report from the completed walkthrough session.
@@ -41,6 +43,7 @@ protocol VerticalConfiguration {
 
 /// Default implementations for optional methods
 extension VerticalConfiguration {
+    @MainActor
     func contextBlock(sessionManager: SessionManager) async -> String? {
         return nil
     }
