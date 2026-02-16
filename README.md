@@ -1,3 +1,13 @@
+<div align="center">
+
+> [![Built by The Pauli Effect](https://img.shields.io/badge/Built%20by-The%20Pauli%20Effect-blueviolet?style=for-the-badge)](https://github.com/executiveusa) [![Agent Fleet](https://img.shields.io/badge/Agent%20Fleet-v1.0-ff6b6b?style=for-the-badge)](https://github.com/executiveusa/dashboard-agent-swarm/blob/main/AGENTS.md)
+>
+> **`VCL-008` · Vision + Voice Pipeline** — Part of the 17-agent Pauli Effect fleet
+
+</div>
+
+---
+
 # VisionClaw 🦞+😎
 
 ![VisionClaw](assets/teaserimage.png)
