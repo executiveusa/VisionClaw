@@ -44,6 +44,8 @@ fun SettingsScreen(
 ) {
     var geminiAPIKey by remember { mutableStateOf(SettingsManager.geminiAPIKey) }
     var systemPrompt by remember { mutableStateOf(SettingsManager.geminiSystemPrompt) }
+    var ax022GatewayUrl by remember { mutableStateOf(SettingsManager.ax022GatewayUrl) }
+    var ax022SessionToken by remember { mutableStateOf(SettingsManager.ax022SessionToken) }
     var openClawHost by remember { mutableStateOf(SettingsManager.openClawHost) }
     var openClawPort by remember { mutableStateOf(SettingsManager.openClawPort.toString()) }
     var openClawHookToken by remember { mutableStateOf(SettingsManager.openClawHookToken) }
@@ -56,6 +58,8 @@ fun SettingsScreen(
     fun save() {
         SettingsManager.geminiAPIKey = geminiAPIKey.trim()
         SettingsManager.geminiSystemPrompt = systemPrompt.trim()
+        SettingsManager.ax022GatewayUrl = ax022GatewayUrl.trim().trimEnd('/')
+        SettingsManager.ax022SessionToken = ax022SessionToken.trim()
         SettingsManager.openClawHost = openClawHost.trim()
         openClawPort.trim().toIntOrNull()?.let { SettingsManager.openClawPort = it }
         SettingsManager.openClawHookToken = openClawHookToken.trim()
@@ -68,6 +72,8 @@ fun SettingsScreen(
     fun reload() {
         geminiAPIKey = SettingsManager.geminiAPIKey
         systemPrompt = SettingsManager.geminiSystemPrompt
+        ax022GatewayUrl = SettingsManager.ax022GatewayUrl
+        ax022SessionToken = SettingsManager.ax022SessionToken
         openClawHost = SettingsManager.openClawHost
         openClawPort = SettingsManager.openClawPort.toString()
         openClawHookToken = SettingsManager.openClawHookToken
@@ -98,7 +104,6 @@ fun SettingsScreen(
                 .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Gemini section
             SectionHeader("Gemini API")
             MonoTextField(
                 value = geminiAPIKey,
@@ -116,8 +121,27 @@ fun SettingsScreen(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
             )
 
-            // OpenClaw section
-            SectionHeader("OpenClaw")
+            SectionHeader("AX-022 Agent Gateway")
+            Text(
+                "When configured, tool calls route through AX-022 to the tenant agent (for example Agent MAXX). The phone stores only the scoped wearable session token.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            MonoTextField(
+                value = ax022GatewayUrl,
+                onValueChange = { ax022GatewayUrl = it },
+                label = "Gateway URL",
+                placeholder = "https://ax022.example.com",
+                keyboardType = KeyboardType.Uri,
+            )
+            MonoTextField(
+                value = ax022SessionToken,
+                onValueChange = { ax022SessionToken = it },
+                label = "Wearable Session Token",
+                placeholder = "Short-lived AX-022 token",
+            )
+
+            SectionHeader("OpenClaw (legacy/fallback)")
             MonoTextField(
                 value = openClawHost,
                 onValueChange = { openClawHost = it },
@@ -145,7 +169,6 @@ fun SettingsScreen(
                 placeholder = "Gateway auth token",
             )
 
-            // WebRTC section
             SectionHeader("WebRTC")
             MonoTextField(
                 value = webrtcSignalingURL,
@@ -155,7 +178,6 @@ fun SettingsScreen(
                 keyboardType = KeyboardType.Uri,
             )
 
-            // Video
             SectionHeader("Video")
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -176,7 +198,6 @@ fun SettingsScreen(
                 )
             }
 
-            // Notifications
             SectionHeader("Notifications")
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -186,7 +207,7 @@ fun SettingsScreen(
                 Column {
                     Text("Proactive Notifications", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Receive updates from OpenClaw spoken through glasses.",
+                        "Receive OpenClaw proactive updates when the legacy provider is active.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -197,7 +218,6 @@ fun SettingsScreen(
                 )
             }
 
-            // Reset
             TextButton(onClick = { showResetDialog = true }) {
                 Text("Reset to Defaults", color = Color.Red)
             }
