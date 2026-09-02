@@ -57,3 +57,7 @@ Do not reproduce CAMEL HALO's reference `bypassPermissions` behavior in producti
 - signed receipts for completed intents/missions;
 - gateway binds to loopback by default and should be published only behind authenticated TLS/reverse proxy;
 - recording retention is opt-in tenant policy, not a device default.
+
+## Production gate: mobile secret storage
+
+The current iOS/Android proof wiring stores the scoped AX-022 session token in the existing app settings stores (`UserDefaults` / `SharedPreferences`). This is acceptable for a development proof using a short-lived/revocable token, but **not the final production credential store**. Before customer production deployment, move the token to iOS Keychain and Android Keystore-backed encrypted storage and prove logout/revoke/expiry behavior.
