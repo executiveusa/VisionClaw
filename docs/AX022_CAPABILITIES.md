@@ -50,6 +50,7 @@ Status meanings:
 | Capability | Status | Notes |
 |---|---|---|
 | ICM L0-L4 policy engine | VERIFIED | L2 standing policy, L3 approval, L4 hard gate |
+| Verified approval-envelope enforcement | VERIFIED | caller-supplied `approved:true` alone cannot bypass L3; verified server envelope + approval ID required |
 | Signed action receipts | VERIFIED | HMAC-SHA256 receipts |
 | Server-side credential boundary | VERIFIED by architecture/test | MAXX key remains gateway-side |
 | Loopback gateway default | VERIFIED | `127.0.0.1` unless explicitly changed |
@@ -102,4 +103,4 @@ npm test
 npm run check
 ```
 
-Expected current automated result: **10 core tests + 1 gateway integration test pass**.
+Current automated result: **11 core tests + 1 gateway integration test pass; syntax checks pass**.
