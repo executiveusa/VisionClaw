@@ -52,6 +52,13 @@ These paths now exist in source but were not built/run against their real target
 - Real MentraOS device/session connection.
 - Full iOS runtime behavior, full Android runtime behavior, end-to-end Meta hardware execution, and WebRTC production reliability.
 
+## PRODUCTION GATES
+
+- Move AX-022 session token storage from current proof-level `UserDefaults` / `SharedPreferences` into iOS Keychain / Android Keystore-backed encrypted storage.
+- Publish gateway only behind authenticated TLS/reverse proxy.
+- Replace in-memory session storage with durable/revocable production session state if multi-instance or restart persistence is required.
+- Prove the real deployed MAXX path and physical/emulated Halo path before claiming customer production readiness.
+
 ## PLANNED
 
 - Jarvis authenticated wearable gateway adapter for the owner's personal/fleet path.
