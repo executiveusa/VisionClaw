@@ -13,6 +13,7 @@ class GeminiSessionViewModel: ObservableObject {
   @Published var openClawConnectionState: OpenClawConnectionState = .notConfigured
   private let geminiService = GeminiLiveService()
   private let openClawBridge = OpenClawBridge()
+  private let ax022Bridge = Ax022GatewayBridge()
   private var toolCallRouter: ToolCallRouter?
   private let audioManager = AudioManager()
   private let eventClient = OpenClawEventClient()
@@ -21,22 +22,23 @@ class GeminiSessionViewModel: ObservableObject {
 
   var streamingMode: StreamingMode = .glasses
 
+  private var activeToolBridge: ToolBridge {
+    SettingsManager.shared.isAx022Configured ? ax022Bridge : openClawBridge
+  }
+
   func startSession() async {
     guard !isGeminiActive else { return }
 
     guard GeminiConfig.isConfigured else {
-      errorMessage = "Gemini API key not configured. Open GeminiConfig.swift and replace YOUR_GEMINI_API_KEY with your key from https://aistudio.google.com/apikey"
+      errorMessage = "Gemini API key not configured. Open Settings and add your key from https://aistudio.google.com/apikey"
       return
     }
 
     isGeminiActive = true
 
-    // Wire audio callbacks
     audioManager.onAudioCaptured = { [weak self] data in
       guard let self else { return }
       Task { @MainActor in
-        // Mute mic while model speaks when speaker is on the phone
-        // (loudspeaker + co-located mic overwhelms iOS echo cancellation)
         let speakerOnPhone = self.streamingMode == .iPhone || SettingsManager.shared.speakerOutputEnabled
         if speakerOnPhone && self.geminiService.isModelSpeaking { return }
         self.geminiService.sendAudio(data: data)
@@ -53,10 +55,7 @@ class GeminiSessionViewModel: ObservableObject {
 
     geminiService.onTurnComplete = { [weak self] in
       guard let self else { return }
-      Task { @MainActor in
-        // Clear user transcript when AI finishes responding
-        self.userTranscript = ""
-      }
+      Task { @MainActor in self.userTranscript = "" }
     }
 
     geminiService.onInputTranscription = { [weak self] text in
@@ -69,12 +68,9 @@ class GeminiSessionViewModel: ObservableObject {
 
     geminiService.onOutputTranscription = { [weak self] text in
       guard let self else { return }
-      Task { @MainActor in
-        self.aiTranscript += text
-      }
+      Task { @MainActor in self.aiTranscript += text }
     }
 
-    // Handle unexpected disconnection
     geminiService.onDisconnected = { [weak self] reason in
       guard let self else { return }
       Task { @MainActor in
@@ -84,12 +80,11 @@ class GeminiSessionViewModel: ObservableObject {
       }
     }
 
-    // Check OpenClaw connectivity and start fresh session
-    await openClawBridge.checkConnection()
-    openClawBridge.resetSession()
+    let bridge = activeToolBridge
+    await bridge.checkConnection()
+    bridge.resetSession()
 
-    // Wire tool call handling
-    toolCallRouter = ToolCallRouter(bridge: openClawBridge)
+    toolCallRouter = ToolCallRouter(bridge: bridge)
 
     geminiService.onToolCall = { [weak self] toolCall in
       guard let self else { return }
@@ -109,20 +104,18 @@ class GeminiSessionViewModel: ObservableObject {
       }
     }
 
-    // Observe service state
     stateObservation = Task { [weak self] in
       guard let self else { return }
       while !Task.isCancelled {
-        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try? await Task.sleep(nanoseconds: 100_000_000)
         guard !Task.isCancelled else { break }
         self.connectionState = self.geminiService.connectionState
         self.isModelSpeaking = self.geminiService.isModelSpeaking
-        self.toolCallStatus = self.openClawBridge.lastToolCallStatus
-        self.openClawConnectionState = self.openClawBridge.connectionState
+        self.toolCallStatus = bridge.lastToolCallStatus
+        self.openClawConnectionState = bridge.connectionState
       }
     }
 
-    // Setup audio
     do {
       try audioManager.setupAudioSession(useIPhoneMode: streamingMode == .iPhone)
     } catch {
@@ -131,7 +124,6 @@ class GeminiSessionViewModel: ObservableObject {
       return
     }
 
-    // Connect to Gemini and wait for setupComplete
     let setupOk = await geminiService.connect()
 
     if !setupOk {
@@ -150,7 +142,6 @@ class GeminiSessionViewModel: ObservableObject {
       return
     }
 
-    // Start mic capture
     do {
       try audioManager.startCapture()
     } catch {
@@ -163,8 +154,7 @@ class GeminiSessionViewModel: ObservableObject {
       return
     }
 
-    // Connect to OpenClaw event stream for proactive notifications
-    if SettingsManager.shared.proactiveNotificationsEnabled {
+    if bridge === openClawBridge && SettingsManager.shared.proactiveNotificationsEnabled {
       eventClient.onNotification = { [weak self] text in
         guard let self else { return }
         Task { @MainActor in
@@ -200,5 +190,4 @@ class GeminiSessionViewModel: ObservableObject {
     lastVideoFrameTime = now
     geminiService.sendVideoFrame(image: image)
   }
-
 }
