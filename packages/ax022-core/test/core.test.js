@@ -138,3 +138,17 @@ test('model router chooses providers by capability instead of vendor name', asyn
   assert.equal(router.make(ModelCapability.STT, { tenant: 'macs' }).kind, 'stt');
   assert.equal(router.make(ModelCapability.VLM, { tenant: 'macs' }).kind, 'vlm');
 });
+
+test('tool fabric rejects unverified approval claims and accepts verified envelopes', async () => {
+  const { ToolFabric } = await import('../src/tool-fabric.js');
+  let executions = 0;
+  const fabric = new ToolFabric({ policyEngine: new PolicyEngine() });
+  fabric.register('demo', { execute: async () => { executions++; return { ok:true }; } });
+  const identity = createWearableIdentity({ wearableId:'w', userId:'u', tenantId:'t', agentId:'a', deviceProfile:'brilliant-halo' });
+  const fake = await fabric.execute({ provider:'demo', tool:'publish', identity, riskTier:RiskTier.L3, approvalEnvelope:{ approved:true } });
+  assert.equal(fake.blocked, true);
+  assert.equal(executions, 0);
+  const verified = await fabric.execute({ provider:'demo', tool:'publish', identity, riskTier:RiskTier.L3, approvalEnvelope:{ approved:true, verified:true, approvalId:'approval-1' } });
+  assert.equal(verified.ok, true);
+  assert.equal(executions, 1);
+});
