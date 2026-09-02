@@ -15,19 +15,19 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 
-class OpenClawBridge {
+class OpenClawBridge : ToolBridge {
     companion object {
         private const val TAG = "OpenClawBridge"
         private const val MAX_HISTORY_TURNS = 10
     }
 
     private val _lastToolCallStatus = MutableStateFlow<ToolCallStatus>(ToolCallStatus.Idle)
-    val lastToolCallStatus: StateFlow<ToolCallStatus> = _lastToolCallStatus.asStateFlow()
+    override val lastToolCallStatus: StateFlow<ToolCallStatus> = _lastToolCallStatus.asStateFlow()
 
     private val _connectionState = MutableStateFlow<OpenClawConnectionState>(OpenClawConnectionState.NotConfigured)
-    val connectionState: StateFlow<OpenClawConnectionState> = _connectionState.asStateFlow()
+    override val connectionState: StateFlow<OpenClawConnectionState> = _connectionState.asStateFlow()
 
-    fun setToolCallStatus(status: ToolCallStatus) {
+    override fun setToolCallStatus(status: ToolCallStatus) {
         _lastToolCallStatus.value = status
     }
 
@@ -44,7 +44,7 @@ class OpenClawBridge {
     private var sessionKey: String = "agent:main:glass"
     private val conversationHistory = mutableListOf<JSONObject>()
 
-    suspend fun checkConnection() = withContext(Dispatchers.IO) {
+    override suspend fun checkConnection() = withContext(Dispatchers.IO) {
         if (!GeminiConfig.isOpenClawConfigured) {
             _connectionState.value = OpenClawConnectionState.NotConfigured
             return@withContext
@@ -76,26 +76,24 @@ class OpenClawBridge {
         }
     }
 
-    fun resetSession() {
+    override fun resetSession() {
         conversationHistory.clear()
         Log.d(TAG, "Session reset (key retained: $sessionKey)")
     }
 
-    suspend fun delegateTask(
+    override suspend fun delegateTask(
         task: String,
-        toolName: String = "execute"
+        toolName: String
     ): ToolResult = withContext(Dispatchers.IO) {
         _lastToolCallStatus.value = ToolCallStatus.Executing(toolName)
 
         val url = "${GeminiConfig.openClawHost}:${GeminiConfig.openClawPort}/v1/chat/completions"
 
-        // Append user message
         conversationHistory.add(JSONObject().apply {
             put("role", "user")
             put("content", task)
         })
 
-        // Trim history
         if (conversationHistory.size > MAX_HISTORY_TURNS * 2) {
             val trimmed = conversationHistory.takeLast(MAX_HISTORY_TURNS * 2)
             conversationHistory.clear()
@@ -165,5 +163,4 @@ class OpenClawBridge {
             return@withContext ToolResult.Failure("Agent error: ${e.message}")
         }
     }
-
 }
