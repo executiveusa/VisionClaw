@@ -1,0 +1,18 @@
+{
+  "tenants": {
+    "macs": {
+      "displayName": "MACS Digital Media",
+      "agentAdapter": "agent-maxx",
+      "defaultAgentId": "agent-maxx",
+      "policyId": "macs-owner",
+      "deviceProfiles": ["brilliant-halo", "meta-rayban-dat", "rokid-glasses"]
+    },
+    "personal": {
+      "displayName": "Pauli Personal Studio",
+      "agentAdapter": "hermes-http",
+      "defaultAgentId": "jarvis",
+      "policyId": "owner-personal",
+      "deviceProfiles": ["brilliant-halo", "meta-rayban-dat", "mentra-live", "rokid-glasses"]
+    }
+  }
+}
