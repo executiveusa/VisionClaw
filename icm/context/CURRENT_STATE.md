@@ -18,6 +18,7 @@ Baseline before AX-022 work: repository `main` at commit `1d6ca07768f7ea7428c099
 - Wearable identity includes wearable, user, tenant, agent, device profile, and policy.
 - Short-lived session tokens are generated from a pairing secret and are tenant/device scoped.
 - ICM L0-L4 policy decisions gate L2/L3/L4 actions.
+- Gated tool execution requires a server-verified approval envelope; a caller-supplied `approved:true` flag alone cannot bypass an L3 gate.
 - Signed HMAC evidence receipts are emitted by the gateway.
 - Model routing is capability-based (`llm`, `vlm`, `stt`, `tts`, translation, embeddings), not provider-name based.
 - ACI provider supports dynamic function discovery and tenant-linked execution contracts.
@@ -25,7 +26,7 @@ Baseline before AX-022 work: repository `main` at commit `1d6ca07768f7ea7428c099
 - Brilliant Halo adapter wraps the upstream `brilliant-ble` transport rather than reimplementing BLE.
 - MentraOS-style hardware capability objects normalize into AX-022 capability contracts.
 
-Local proof: `packages/ax022-core` passes 10/10 Node tests plus syntax checks.
+Local proof: `packages/ax022-core` passes 11/11 Node tests plus syntax checks.
 
 ### AX-022 gateway / MAXX customer-zero path
 - `services/ax022-gateway` implements health, wearable session issuance, capability lookup, intent routing, and mission creation.
