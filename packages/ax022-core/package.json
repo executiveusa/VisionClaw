@@ -11,10 +11,10 @@
   },
   "peerDependencies": {
     "@aci-sdk/aci": ">=0.1.8-beta",
-    "brilliant-sdk": "*"
+    "brilliant-ble": ">=1.1.0"
   },
   "peerDependenciesMeta": {
     "@aci-sdk/aci": { "optional": true },
-    "brilliant-sdk": { "optional": true }
+    "brilliant-ble": { "optional": true }
   }
 }
