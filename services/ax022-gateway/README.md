@@ -17,4 +17,6 @@ Set `MAXX_BASE_URL` and `MAXX_API_KEY` on the gateway host. The machine key neve
 - no agent/vendor credentials are returned to clients;
 - signed receipts are emitted for completed intents/missions;
 - pairing secret is required;
-- tenant and device profiles are server-side configuration.
+- tenant and device profiles are server-side configuration;
+- production publishing should use authenticated TLS/reverse proxy;
+- mobile clients should move the scoped AX-022 token into Keychain/Android Keystore-backed storage before production. The current VisionClaw settings wiring is development/proof storage, not the final device-secret vault.
