@@ -1,37 +1,72 @@
 # Current State
 
-Last baseline: repository main at commit `1d6ca07768f7ea7428c099289cf1f98ca8ab5266` before this ICM branch.
+Baseline before AX-022 work: repository `main` at commit `1d6ca07768f7ea7428c099289cf1f98ca8ab5266`.
 
-## VERIFIED FROM SOURCE INSPECTION
+## VERIFIED IN THIS AX-022 SLICE
 
+### Source baseline
 - Repository contains iOS and Android smart-glasses companion implementations.
 - Meta Ray-Ban/phone camera pathways exist.
 - Gemini Live real-time voice/vision pathway exists in source.
 - OpenClaw tool-routing integration exists in source.
 - WebRTC live POV streaming implementation exists in source.
 
-## IMPLEMENTED_UNVERIFIED IN THIS AUDIT
+### AX-022 core
+- `packages/ax022-core` exists as a vendor-neutral package boundary.
+- Device capability catalog covers Brilliant Halo, current Meta DAT path, Mentra Live, and Rokid profiles.
+- Participant-scoped media routing returns responses only to the originating wearable participant.
+- Wearable identity includes wearable, user, tenant, agent, device profile, and policy.
+- Short-lived session tokens are generated from a pairing secret and are tenant/device scoped.
+- ICM L0-L4 policy decisions gate L2/L3/L4 actions.
+- Signed HMAC evidence receipts are emitted by the gateway.
+- Model routing is capability-based (`llm`, `vlm`, `stt`, `tts`, translation, embeddings), not provider-name based.
+- ACI provider supports dynamic function discovery and tenant-linked execution contracts.
+- OpenClaw provider has a hard deny boundary for dangerous execution/admin tools unless explicitly allowlisted.
+- Brilliant Halo adapter wraps the upstream `brilliant-ble` transport rather than reimplementing BLE.
+- MentraOS-style hardware capability objects normalize into AX-022 capability contracts.
 
-- Full iOS runtime behavior.
-- Full Android runtime behavior.
-- End-to-end Meta hardware execution.
-- OpenClaw external-action execution.
-- WebRTC production reliability.
+Local proof: `packages/ax022-core` passes 10/10 Node tests plus syntax checks.
 
-These exist in source but were not rebuilt/run during this ICM-only slice.
+### AX-022 gateway / MAXX customer-zero path
+- `services/ax022-gateway` implements health, wearable session issuance, capability lookup, intent routing, and mission creation.
+- The gateway defaults to `127.0.0.1` and keeps tenant agent credentials server-side.
+- Agent MAXX uses the existing MACS control-plane contract: `/v1/chat` and `/v1/missions` with the constrained `x-maxx-api-key` machine credential.
+- The machine path cannot approve consequential MAXX actions; human approval remains a separate human-authenticated path.
+- Gateway integration test proves a simulated MACS/Halo wearable can receive a scoped AX-022 token, send `What needs me?`, route through the MAXX adapter, and receive a signed receipt without the MAXX key reaching the wearable.
+
+Local proof: `services/ax022-gateway` passes 1/1 end-to-end gateway test plus syntax check.
+
+## IMPLEMENTED_UNVERIFIED
+
+These paths now exist in source but were not built/run against their real target hardware or production service during this slice:
+
+- Android VisionClaw can prefer AX-022 Gateway for Gemini tool calls and fall back to OpenClaw.
+- iOS VisionClaw can prefer AX-022 Gateway for Gemini tool calls and fall back to OpenClaw.
+- Android/iOS settings expose AX-022 gateway URL + scoped wearable session token.
+- Real Brilliant Halo connection through upstream `brilliant-ble`.
+- Brilliant Halo Lua/display/audio/camera behavior on physical hardware or Halo emulator.
+- Live AX-022 Gateway -> deployed Agent MAXX using real production credentials.
+- Live ACI cloud function discovery/execution.
+- Live OpenClaw `/tools/invoke` execution through the AX-022 provider.
+- Real MentraOS device/session connection.
+- Full iOS runtime behavior, full Android runtime behavior, end-to-end Meta hardware execution, and WebRTC production reliability.
 
 ## PLANNED
 
-- Brilliant Labs Halo adapter.
-- Jarvis wearable gateway integration.
-- Hermes routing contract over the wearable gateway.
+- Jarvis authenticated wearable gateway adapter for the owner's personal/fleet path.
+- Hermes business routing behind Jarvis.
 - Pauli's Place approvals/status projection.
 - STARNET/Heisenberg mission/status routing.
-- MAXX tenant/context switch.
-- Vendor-neutral device adapter interface.
-- MCP/API/CLI surface for AX-022.
-- Commercial provisioning/onboarding package.
+- Physical Brilliant Halo HUD/audio/gesture implementation and emulator fixtures.
+- Full Mentra and Rokid device adapters.
+- Translation provider abstraction wired to live wearable UX.
+- MCP/API/CLI packaging beyond the current HTTP gateway/core package.
+- Commercial provisioning/onboarding, device enrollment, billing, fleet management, and tenant admin UI.
 
 ## Next proof
 
-Implement one vendor-neutral intent contract without breaking the existing Meta path, then prove one read-only Jarvis/Hermes status round-trip before adding consequential actions.
+Deploy `services/ax022-gateway` beside the private MAXX control plane, issue one MACS wearable session, then prove the complete phone-mode or glasses-mode round trip:
+
+`voice/vision -> Gemini Live -> execute -> AX-022 scoped token -> MAXX control plane -> Agent MAXX -> tool response -> spoken response`.
+
+After that, run the same contract against the Brilliant Halo emulator before physical Halo verification.
