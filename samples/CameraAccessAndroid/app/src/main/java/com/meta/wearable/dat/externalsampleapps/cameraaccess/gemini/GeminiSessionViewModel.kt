@@ -4,10 +4,12 @@ import android.graphics.Bitmap
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.ax022.Ax022GatewayBridge
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.OpenClawBridge
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.OpenClawEventClient
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.settings.SettingsManager
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.OpenClawConnectionState
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.ToolBridge
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.ToolCallRouter
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.openclaw.ToolCallStatus
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.stream.StreamingMode
@@ -40,6 +42,7 @@ class GeminiSessionViewModel : ViewModel() {
 
     private val geminiService = GeminiLiveService()
     private val openClawBridge = OpenClawBridge()
+    private val ax022Bridge = Ax022GatewayBridge()
     private var toolCallRouter: ToolCallRouter? = null
     private val audioManager = AudioManager()
     private val eventClient = OpenClawEventClient()
@@ -47,6 +50,9 @@ class GeminiSessionViewModel : ViewModel() {
     private var stateObservationJob: Job? = null
 
     var streamingMode: StreamingMode = StreamingMode.GLASSES
+
+    private fun activeToolBridge(): ToolBridge =
+        if (SettingsManager.isAx022Configured) ax022Bridge else openClawBridge
 
     fun startSession() {
         if (_uiState.value.isGeminiActive) return
@@ -60,9 +66,7 @@ class GeminiSessionViewModel : ViewModel() {
 
         _uiState.value = _uiState.value.copy(isGeminiActive = true)
 
-        // Wire audio callbacks
         audioManager.onAudioCaptured = lambda@{ data ->
-            // Phone mode: mute mic while model speaks to prevent echo
             if (streamingMode == StreamingMode.PHONE && geminiService.isModelSpeaking.value) return@lambda
             geminiService.sendAudio(data)
         }
@@ -101,13 +105,13 @@ class GeminiSessionViewModel : ViewModel() {
             }
         }
 
-        // Check OpenClaw and start session
-        viewModelScope.launch {
-            openClawBridge.checkConnection()
-            openClawBridge.resetSession()
+        val bridge = activeToolBridge()
 
-            // Wire tool call handling
-            toolCallRouter = ToolCallRouter(openClawBridge, viewModelScope)
+        viewModelScope.launch {
+            bridge.checkConnection()
+            bridge.resetSession()
+
+            toolCallRouter = ToolCallRouter(bridge, viewModelScope)
 
             geminiService.onToolCall = { toolCall ->
                 for (call in toolCall.functionCalls) {
@@ -121,20 +125,18 @@ class GeminiSessionViewModel : ViewModel() {
                 toolCallRouter?.cancelToolCalls(cancellation.ids)
             }
 
-            // Observe service state
             stateObservationJob = viewModelScope.launch {
                 while (isActive) {
                     delay(100)
                     _uiState.value = _uiState.value.copy(
                         connectionState = geminiService.connectionState.value,
                         isModelSpeaking = geminiService.isModelSpeaking.value,
-                        toolCallStatus = openClawBridge.lastToolCallStatus.value,
-                        openClawConnectionState = openClawBridge.connectionState.value,
+                        toolCallStatus = bridge.lastToolCallStatus.value,
+                        openClawConnectionState = bridge.connectionState.value,
                     )
                 }
             }
 
-            // Connect to Gemini
             geminiService.connect { setupOk ->
                 if (!setupOk) {
                     val msg = when (val state = geminiService.connectionState.value) {
@@ -151,7 +153,6 @@ class GeminiSessionViewModel : ViewModel() {
                     return@connect
                 }
 
-                // Start mic capture
                 try {
                     audioManager.startCapture()
                 } catch (e: Exception) {
@@ -166,8 +167,7 @@ class GeminiSessionViewModel : ViewModel() {
                     )
                 }
 
-                // Connect to OpenClaw event stream for proactive notifications
-                if (SettingsManager.proactiveNotificationsEnabled) {
+                if (bridge === openClawBridge && SettingsManager.proactiveNotificationsEnabled) {
                     eventClient.onNotification = { text ->
                         val state = _uiState.value
                         if (state.isGeminiActive && state.connectionState == GeminiConnectionState.Ready) {
