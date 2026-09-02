@@ -79,3 +79,62 @@ test('ACI provider performs dynamic function discovery and tenant-linked executi
   assert.equal(result.ok, true);
   assert.equal(calls[1][1].linked_account_owner_id, 'macs:stacy');
 });
+
+test('Brilliant Halo adapter wraps upstream transport without owning BLE internals', async () => {
+  const calls = [];
+  const fakeBle = {
+    type: 'halo',
+    connect: async (options) => { calls.push(['connect', options]); return 'Halo'; },
+    disconnect: async () => calls.push(['disconnect']),
+    sendLua: async (lua, options) => { calls.push(['lua', lua, options]); return 'ok'; },
+    setDataResponseHandler: (handler) => calls.push(['data-handler', typeof handler]),
+    setPrintResponseHandler: (handler) => calls.push(['print-handler', typeof handler]),
+  };
+  const { BrilliantHaloAdapter } = await import('../src/devices/brilliant-halo-adapter.js');
+  const adapter = new BrilliantHaloAdapter({ ble: fakeBle });
+  const connected = await adapter.connect({ timeout: 1 });
+  assert.equal(connected.type, 'halo');
+  await adapter.sendLua("frame.display.text('MAXX',1,1)");
+  adapter.onRawData(() => {});
+  adapter.onPrint(() => {});
+  await adapter.disconnect();
+  assert.equal(calls[0][0], 'connect');
+  assert.equal(calls[1][0], 'lua');
+});
+
+test('MentraOS-style hardware capabilities normalize into AX-022', async () => {
+  const { fromMentraCapabilities } = await import('../src/devices/mentra-capability-adapter.js');
+  const caps = fromMentraCapabilities({
+    modelName: 'Mentra Test', hasCamera: true, camera: { video: { canStream: true } },
+    hasMicrophone: true, microphone: { count: 3 }, hasSpeaker: true, speaker: { count: 2 },
+    hasDisplay: false, hasWifi: true,
+  });
+  assert.equal(caps.hasCamera, true);
+  assert.equal(caps.hasMicrophone, true);
+  assert.equal(caps.hasSpeaker, true);
+  assert.equal(caps.hasWifi, true);
+});
+
+test('OpenClaw provider hard-blocks dangerous tools before network execution', async () => {
+  const { OpenClawToolProvider } = await import('../src/providers/openclaw-tool-provider.js');
+  let networkCalls = 0;
+  const provider = new OpenClawToolProvider({
+    baseUrl: 'http://127.0.0.1:18789', token: 'operator',
+    fetchImpl: async () => { networkCalls++; throw new Error('should not execute'); },
+  });
+  const result = await provider.execute({
+    tool: 'exec', args: { command: 'whoami' },
+    identity: createWearableIdentity({ wearableId:'w', userId:'u', tenantId:'t', agentId:'a', deviceProfile:'brilliant-halo' }),
+  });
+  assert.equal(result.blocked, true);
+  assert.equal(networkCalls, 0);
+});
+
+test('model router chooses providers by capability instead of vendor name', async () => {
+  const { ModelRouter, ModelCapability } = await import('../src/model-router.js');
+  const router = new ModelRouter();
+  router.register(ModelCapability.STT, (context) => ({ kind: 'stt', context }));
+  router.register(ModelCapability.VLM, (context) => ({ kind: 'vlm', context }));
+  assert.equal(router.make(ModelCapability.STT, { tenant: 'macs' }).kind, 'stt');
+  assert.equal(router.make(ModelCapability.VLM, { tenant: 'macs' }).kind, 'vlm');
+});
