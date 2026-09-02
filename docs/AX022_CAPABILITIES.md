@@ -56,8 +56,9 @@ Status meanings:
 | Loopback gateway default | VERIFIED | `127.0.0.1` unless explicitly changed |
 | Dangerous OpenClaw hard-deny | VERIFIED | blocks exec/shell/fs mutation/spawn/admin classes before network call |
 | Tenant isolation contract | VERIFIED in core tests | identity + participant routing |
-| Production TLS/reverse proxy | PLANNED deployment step | gateway itself is private HTTP service |
+| Production TLS/reverse proxy | PLANNED deployment gate | gateway itself is private HTTP service |
 | Persistent session store | PLANNED | current v0 store is memory-only |
+| Mobile Keychain/Keystore session-token storage | PLANNED production gate | current proof uses existing UserDefaults/SharedPreferences settings stores |
 
 ## Models and multimodal services
 
