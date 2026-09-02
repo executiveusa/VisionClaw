@@ -8,7 +8,7 @@ enum OpenClawConnectionState: Equatable {
 }
 
 @MainActor
-class OpenClawBridge: ObservableObject {
+class OpenClawBridge: ObservableObject, ToolBridge {
   @Published var lastToolCallStatus: ToolCallStatus = .idle
   @Published var connectionState: OpenClawConnectionState = .notConfigured
 
@@ -65,8 +65,6 @@ class OpenClawBridge: ObservableObject {
     NSLog("[OpenClaw] Session reset (key retained: %@)", sessionKey)
   }
 
-  // MARK: - Agent Chat (session continuity via x-openclaw-session-key header)
-
   func delegateTask(
     task: String,
     toolName: String = "execute"
@@ -78,10 +76,8 @@ class OpenClawBridge: ObservableObject {
       return .failure("Invalid gateway URL")
     }
 
-    // Append the new user message to conversation history
     conversationHistory.append(["role": "user", "content": task])
 
-    // Trim history to keep only the most recent turns (user+assistant pairs)
     if conversationHistory.count > maxHistoryTurns * 2 {
       conversationHistory = Array(conversationHistory.suffix(maxHistoryTurns * 2))
     }
@@ -119,7 +115,6 @@ class OpenClawBridge: ObservableObject {
          let first = choices.first,
          let message = first["message"] as? [String: Any],
          let content = message["content"] as? String {
-        // Append assistant response to history for continuity
         conversationHistory.append(["role": "assistant", "content": content])
         NSLog("[OpenClaw] Agent result: %@", String(content.prefix(200)))
         lastToolCallStatus = .completed(toolName)
