@@ -8,7 +8,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class ToolCallRouter(
-    private val bridge: OpenClawBridge,
+    private val bridge: ToolBridge,
     private val scope: CoroutineScope
 ) {
     companion object {
@@ -33,7 +33,7 @@ class ToolCallRouter(
             Log.d(TAG, "Circuit breaker open ($consecutiveFailures consecutive failures), rejecting $callId")
             val errorResult = ToolResult.Failure(
                 "Tool execution is temporarily unavailable after $consecutiveFailures consecutive failures. " +
-                "Please tell the user you cannot complete this action right now and suggest they check their OpenClaw gateway connection."
+                "Please tell the user you cannot complete this action right now and suggest they check their agent gateway connection."
             )
             sendResponse(buildToolResponse(callId, callName, errorResult))
             return

@@ -5,6 +5,8 @@ struct SettingsView: View {
   private let settings = SettingsManager.shared
 
   @State private var geminiAPIKey: String = ""
+  @State private var ax022GatewayURL: String = ""
+  @State private var ax022SessionToken: String = ""
   @State private var openClawHost: String = ""
   @State private var openClawPort: String = ""
   @State private var openClawHookToken: String = ""
@@ -21,9 +23,7 @@ struct SettingsView: View {
       Form {
         Section(header: Text("Gemini API")) {
           VStack(alignment: .leading, spacing: 4) {
-            Text("API Key")
-              .font(.caption)
-              .foregroundColor(.secondary)
+            Text("API Key").font(.caption).foregroundColor(.secondary)
             TextField("Enter Gemini API key", text: $geminiAPIKey)
               .autocapitalization(.none)
               .disableAutocorrection(true)
@@ -31,59 +31,60 @@ struct SettingsView: View {
           }
         }
 
-        Section(header: Text("System Prompt"), footer: Text("Customize the AI assistant's behavior and personality. Changes take effect on the next Gemini session.")) {
+        Section(header: Text("System Prompt"), footer: Text("Changes take effect on the next Gemini session.")) {
           TextEditor(text: $geminiSystemPrompt)
             .font(.system(.body, design: .monospaced))
             .frame(minHeight: 200)
         }
 
-        Section(header: Text("OpenClaw"), footer: Text("Connect to an OpenClaw gateway running on your Mac for agentic tool-calling.")) {
+        Section(header: Text("AX-022 Agent Gateway"), footer: Text("When configured, tool calls route through AX-022 to the tenant agent. The phone stores only the scoped wearable session token; Agent MAXX/Hermes credentials remain server-side.")) {
           VStack(alignment: .leading, spacing: 4) {
-            Text("Host")
-              .font(.caption)
-              .foregroundColor(.secondary)
+            Text("Gateway URL").font(.caption).foregroundColor(.secondary)
+            TextField("https://ax022.example.com", text: $ax022GatewayURL)
+              .autocapitalization(.none)
+              .disableAutocorrection(true)
+              .keyboardType(.URL)
+              .font(.system(.body, design: .monospaced))
+          }
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Wearable Session Token").font(.caption).foregroundColor(.secondary)
+            SecureField("Short-lived AX-022 token", text: $ax022SessionToken)
+              .font(.system(.body, design: .monospaced))
+          }
+        }
+
+        Section(header: Text("OpenClaw (legacy/fallback)"), footer: Text("Used when AX-022 is not configured.")) {
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Host").font(.caption).foregroundColor(.secondary)
             TextField("http://your-mac.local", text: $openClawHost)
               .autocapitalization(.none)
               .disableAutocorrection(true)
               .keyboardType(.URL)
               .font(.system(.body, design: .monospaced))
           }
-
           VStack(alignment: .leading, spacing: 4) {
-            Text("Port")
-              .font(.caption)
-              .foregroundColor(.secondary)
+            Text("Port").font(.caption).foregroundColor(.secondary)
             TextField("18789", text: $openClawPort)
               .keyboardType(.numberPad)
               .font(.system(.body, design: .monospaced))
           }
-
           VStack(alignment: .leading, spacing: 4) {
-            Text("Hook Token")
-              .font(.caption)
-              .foregroundColor(.secondary)
+            Text("Hook Token").font(.caption).foregroundColor(.secondary)
             TextField("Hook token", text: $openClawHookToken)
               .autocapitalization(.none)
               .disableAutocorrection(true)
               .font(.system(.body, design: .monospaced))
           }
-
           VStack(alignment: .leading, spacing: 4) {
-            Text("Gateway Token")
-              .font(.caption)
-              .foregroundColor(.secondary)
-            TextField("Gateway auth token", text: $openClawGatewayToken)
-              .autocapitalization(.none)
-              .disableAutocorrection(true)
+            Text("Gateway Token").font(.caption).foregroundColor(.secondary)
+            SecureField("Gateway auth token", text: $openClawGatewayToken)
               .font(.system(.body, design: .monospaced))
           }
         }
 
         Section(header: Text("WebRTC")) {
           VStack(alignment: .leading, spacing: 4) {
-            Text("Signaling URL")
-              .font(.caption)
-              .foregroundColor(.secondary)
+            Text("Signaling URL").font(.caption).foregroundColor(.secondary)
             TextField("wss://your-server.example.com", text: $webrtcSignalingURL)
               .autocapitalization(.none)
               .disableAutocorrection(true)
@@ -92,32 +93,28 @@ struct SettingsView: View {
           }
         }
 
-        Section(header: Text("Audio"), footer: Text("Route audio output to the iPhone speaker instead of glasses. Useful for demos where others need to hear.")) {
+        Section(header: Text("Audio"), footer: Text("Route output to the iPhone speaker instead of glasses for demos.")) {
           Toggle("Speaker Output", isOn: $speakerOutputEnabled)
         }
 
-        Section(header: Text("Video"), footer: Text("Disable video streaming to save battery. Audio remains active for voice-only interaction.")) {
+        Section(header: Text("Video"), footer: Text("Disable video streaming to save battery. Audio remains active.")) {
           Toggle("Video Streaming", isOn: $videoStreamingEnabled)
         }
 
-        Section(header: Text("Notifications"), footer: Text("Receive proactive updates from OpenClaw (heartbeat, scheduled tasks) spoken through the glasses.")) {
+        Section(header: Text("Notifications"), footer: Text("OpenClaw proactive notifications are active only when the legacy provider is selected.")) {
           Toggle("Proactive Notifications", isOn: $proactiveNotificationsEnabled)
         }
 
         Section {
-          Button("Reset to Defaults") {
-            showResetConfirmation = true
-          }
-          .foregroundColor(.red)
+          Button("Reset to Defaults") { showResetConfirmation = true }
+            .foregroundColor(.red)
         }
       }
       .navigationTitle("Settings")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .navigationBarLeading) {
-          Button("Cancel") {
-            dismiss()
-          }
+          Button("Cancel") { dismiss() }
         }
         ToolbarItem(placement: .navigationBarTrailing) {
           Button("Save") {
@@ -136,15 +133,15 @@ struct SettingsView: View {
       } message: {
         Text("This will reset all settings to the values built into the app.")
       }
-      .onAppear {
-        loadCurrentValues()
-      }
+      .onAppear { loadCurrentValues() }
     }
   }
 
   private func loadCurrentValues() {
     geminiAPIKey = settings.geminiAPIKey
     geminiSystemPrompt = settings.geminiSystemPrompt
+    ax022GatewayURL = settings.ax022GatewayURL
+    ax022SessionToken = settings.ax022SessionToken
     openClawHost = settings.openClawHost
     openClawPort = String(settings.openClawPort)
     openClawHookToken = settings.openClawHookToken
@@ -156,8 +153,11 @@ struct SettingsView: View {
   }
 
   private func save() {
-    settings.geminiAPIKey = geminiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    geminiAPIKey = geminiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    settings.geminiAPIKey = geminiAPIKey
     settings.geminiSystemPrompt = geminiSystemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+    settings.ax022GatewayURL = ax022GatewayURL.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    settings.ax022SessionToken = ax022SessionToken.trimmingCharacters(in: .whitespacesAndNewlines)
     settings.openClawHost = openClawHost.trimmingCharacters(in: .whitespacesAndNewlines)
     if let port = Int(openClawPort.trimmingCharacters(in: .whitespacesAndNewlines)) {
       settings.openClawPort = port
