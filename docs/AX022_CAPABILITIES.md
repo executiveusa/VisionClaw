@@ -17,9 +17,19 @@ Status meanings:
 | Camera/vision context | IMPLEMENTED / NEEDS TARGET PROOF | Existing VisionClaw Gemini Live pipeline |
 | Duplex voice/audio | IMPLEMENTED / NEEDS TARGET PROOF | Existing VisionClaw audio path; Halo private audio still needs hardware proof |
 | HUD/display abstraction | PARTIAL | Capability model exists; Halo/Rokid rendering implementation still required |
-| Gesture/button abstraction | PARTIAL | Capability model exists; vendor event implementations still required |
+| Gesture/button abstraction | VERIFIED at contract/test level | holo-gestures (MIT) hand-gesture layer ported into `packages/ax022-core/src/gestures/`; pinch/tap/drag/flick/stretch/peace/point/fist/open-palm classified from camera landmarks; vendor button events still required |
 | Phone-camera fallback | IMPLEMENTED / NEEDS TARGET PROOF | Existing VisionClaw path |
 | WebRTC live POV sharing | IMPLEMENTED / NEEDS TARGET PROOF | Existing VisionClaw path |
+
+## Shared fleet gesture capability (holo-gestures)
+
+| Capability | Status | Notes |
+|---|---|---|
+| Hand-gesture engine (landmarks -> events) | VERIFIED | 8 node:test suites; rules ported from zubair-trabzada/holo-gestures @ 55626ff (MIT) |
+| Gesture events on the participant media hub | VERIFIED | `inbound:gesture`, participant-isolated |
+| Gateway `POST /v1/gestures` for fleet agents | VERIFIED | per-session engine state, signed receipt, 401 without session |
+| Hermes / Max / Pi agent access | VERIFIED as client contract | clients live in each agent repo's skills directory; gateway is the single capability surface |
+| Gesture-triggered consequential actions | POLICY-GATED | classification is L0; actions still pass ICM policy at the consuming agent |
 
 ## Identity, routing, and tenancy
 
@@ -104,4 +114,4 @@ npm test
 npm run check
 ```
 
-Current automated result: **11 core tests + 1 gateway integration test pass; syntax checks pass**.
+Current automated result: **19 core tests + 2 gateway integration tests pass; syntax checks pass**.
