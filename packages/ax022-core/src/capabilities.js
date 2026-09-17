@@ -10,6 +10,7 @@ export const DeviceCapability = Object.freeze({
   AUDIO_ACTIVITY: 'audio_activity',
   PHOTO: 'photo',
   VIDEO_STREAM: 'video_stream',
+  GESTURE: 'gesture',
 });
 
 export function normalizeCapabilities(input = {}) {
@@ -39,6 +40,7 @@ export function normalizeCapabilities(input = {}) {
     hasAudioActivityDetection: Boolean(input.hasAudioActivityDetection ?? microphone?.hasVAD),
     hasPhoto: Boolean(input.hasPhoto ?? input.hasCamera ?? camera),
     hasVideoStream: Boolean(input.hasVideoStream ?? camera?.video?.canStream),
+    hasGesture: Boolean(input.hasGesture ?? input.hasCamera ?? camera),
     raw: input.raw ?? {},
   });
 }
@@ -56,6 +58,7 @@ export function supports(capabilities, capability) {
     case DeviceCapability.AUDIO_ACTIVITY: return capabilities.hasAudioActivityDetection;
     case DeviceCapability.PHOTO: return capabilities.hasPhoto;
     case DeviceCapability.VIDEO_STREAM: return capabilities.hasVideoStream;
+    case DeviceCapability.GESTURE: return capabilities.hasGesture;
     default: return false;
   }
 }

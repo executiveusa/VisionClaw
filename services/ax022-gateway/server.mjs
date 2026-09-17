@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   AgentRouter,
+  GestureEngine,
   MaxxAgentAdapter,
   PolicyEngine,
   SessionStore,
@@ -23,6 +24,14 @@ const tenantsPath = process.env.AX022_TENANTS_FILE ?? path.resolve(__dirname, '.
 const tenants = fs.existsSync(tenantsPath) ? JSON.parse(fs.readFileSync(tenantsPath, 'utf8')).tenants ?? {} : {};
 
 const sessions = new SessionStore({ pairingSecret });
+// One gesture engine per session token: hand state (pinch lifecycle, identity,
+// smoothing) must persist across frames from the same wearable.
+const gestureEngines = new Map();
+function gestureEngineFor(token) {
+  let engine = gestureEngines.get(token);
+  if (!engine) { engine = new GestureEngine(); gestureEngines.set(token, engine); }
+  return engine;
+}
 const policy = new PolicyEngine();
 const signReceipt = createReceiptSigner(receiptSecret);
 const router = new AgentRouter();
@@ -115,6 +124,29 @@ const server = http.createServer(async (req, res) => {
       if (!decision.allowed) return json(res, 403, { ok:false, decision });
       const result = await adapter.createMission({ objective:String(body.objective ?? '') });
       return json(res, 200, { ok:true, result, receipt:signReceipt({ type:'ax022.mission', tenantId:identity.tenantId, userId:identity.userId, outcome:'created' }) });
+    }
+
+    // Shared holo-gestures input layer: fleet agents POST camera-frame hand
+    // landmarks (MediaPipe 21-point sets) and get classified gesture events
+    // back. Classification is L0 read-tier; gesture-triggered actions stay
+    // behind the consuming agent's policy gate.
+    if (req.method === 'POST' && url.pathname === '/v1/gestures') {
+      const session = requireSession(req);
+      const token = bearer(req);
+      const body = await readJson(req);
+      const frames = Array.isArray(body.frames) ? body.frames : [body];
+      if (frames.length > 120) return json(res, 413, { ok:false, error:'too_many_frames' });
+      const engine = gestureEngineFor(token);
+      const events = [];
+      for (const frame of frames) {
+        if (frame?.hands != null && !Array.isArray(frame.hands)) return json(res, 400, { ok:false, error:'hands_must_be_array' });
+        events.push(...engine.ingest(frame?.hands ?? [], frame?.ts));
+      }
+      const receipt = signReceipt({
+        type: 'ax022.gesture', tenantId: session.identity.tenantId, userId: session.identity.userId,
+        wearableId: session.identity.wearableId, agentId: session.identity.agentId, outcome: 'classified',
+      });
+      return json(res, 200, { ok:true, events, hands: engine.snapshot(), receipt });
     }
 
     return json(res, 404, { ok:false, error:'not_found' });
