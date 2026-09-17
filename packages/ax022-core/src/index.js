@@ -15,3 +15,5 @@ export * from './providers/aci-tool-provider.js';
 export * from './providers/openclaw-tool-provider.js';
 export * from './devices/brilliant-halo-adapter.js';
 export * from './devices/mentra-capability-adapter.js';
+export * from './gestures/gesture-engine.js';
+export * from './gestures/gesture-capability.js';
